@@ -19,6 +19,17 @@ docker run --name mysql \
 -d mysql:5.7
 ```
 
+### PostgreSQL
+
+```yml
+$ docker run --name postgres \
+--restart=always \
+-p 5432:5432 \
+-e POSTGRES_PASSWORD=passowrd \
+-e PGDATA=/var/lib/postgresql/data/pgdata \
+-d postgres:latest
+```
+
 ### Redis
 
 ```yml
@@ -86,31 +97,53 @@ docker run --name kafka \
 ### Zookeeper-Kafka
 
 ```yml
-version: "3"
+version: "2"
 services:
   zookeeper:
-    image: docker.io/bitnami/zookeeper:3.8
-    network_mode: "bridge"
-    container_name: zookeeper_1
-    ports:
-      - "2181:2181"
+    image: confluentinc/cp-zookeeper:7.4.4
+    container_name: zookeeper
+    hostname: zookeeper
     environment:
-      - TZ=Asia/Shanghai
-      - ALLOW_ANONYMOUS_LOGIN=yes
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - 22181:2181
+
   kafka:
-    restart: always
-    image: docker.io/bitnami/kafka:3.4
-    network_mode: "bridge"
-    container_name: kafka_1
-    ports:
-      - "9004:9004"
-    environment:
-      - TZ=Asia/Shanghai
-      - KAFKA_BROKER_ID=1
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9004
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://localhost:9004 #替换成你自己的IP
-      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
-      - ALLOW_PLAINTEXT_LISTENER=yes
+    image: confluentinc/cp-kafka:7.4.4
+    container_name: kafka
+    hostname: kafka
     depends_on:
       - zookeeper
+    ports:
+      - 29092:29092
+      - 9997:9997
+      - 9092:9092
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://localhost:9092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_CONFLUENT_LICENSE_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_CONFLUENT_BALANCER_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_JMX_PORT: 9997
+      KAFKA_JMX_HOSTNAME: kafka
+
+  kafka-ui:
+    image: provectuslabs/kafka-ui:latest
+    container_name: kafka-ui
+    depends_on:
+      - kafka
+    ports:
+      - 8080:8080
+    environment:
+      KAFKA_CLUSTERS_0_NAME: local
+      KAFKA_CLUSTERS_0_BOOTSTRAPSERVERS: kafka:29092
+      KAFKA_CLUSTERS_0_METRICS_PORT: 9997
+      DYNAMIC_CONFIG_ENABLED: "true"
 ```
